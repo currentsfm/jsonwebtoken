@@ -27,7 +27,6 @@ base64 = "0.22"
 pem = { version = "3", optional = true }
 simple_asn1 = { version = "0.6", optional = true }
 
-ring = { version = "0.17.4", features = ["std"] }
 js-sys = { version = "0.3", optional = true }
 
 [dev-dependencies]
@@ -46,7 +45,7 @@ criterion = { version = "0.4", default-features = false }
 [features]
 default = ["use_pem"]
 use_pem = ["pem", "simple_asn1"]
-wasm_js = ["dep:js-sys", "ring/wasm32_unknown_unknown_js"]
+wasm_js = ["dep:js-sys"]
 
 [[bench]]
 name = "jwt"
