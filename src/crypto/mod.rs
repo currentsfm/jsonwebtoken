@@ -82,7 +82,6 @@ pub fn verify(
             )
         },
         Algorithm::EdDSA => {
-            // TODO: Replace with ed25519 crate implementation
             eddsa::verify_eddsa(
                 eddsa::alg_to_ec_verification(algorithm),
                 signature,

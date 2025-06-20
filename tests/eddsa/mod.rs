@@ -25,6 +25,8 @@ fn round_trip_sign_verification_pk8() {
 
     let encrypted =
         sign(b"hello world", &EncodingKey::from_ed_der(privkey), Algorithm::EdDSA).unwrap();
+    
+    eprintln!("en {encrypted}");
     let is_valid =
         verify(&encrypted, b"hello world", &DecodingKey::from_ed_der(pubkey), Algorithm::EdDSA)
             .unwrap();
