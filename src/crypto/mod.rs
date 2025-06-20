@@ -1,6 +1,6 @@
-use ring::constant_time::verify_slices_are_equal;
-use ring::{hmac, signature};
-
+use hmac::digest::KeyInit;
+use hmac::Mac;
+use subtle::ConstantTimeEq;
 use crate::algorithms::Algorithm;
 use crate::decoding::{DecodingKey, DecodingKeyKind};
 use crate::encoding::EncodingKey;
@@ -11,10 +11,18 @@ pub(crate) mod ecdsa;
 pub(crate) mod eddsa;
 pub(crate) mod rsa;
 
+type HmacSha256 = hmac::Hmac<sha2::Sha256>;
+type HmacSha384 = hmac::Hmac<sha2::Sha384>;
+type HmacSha512 = hmac::Hmac<sha2::Sha512>;
+
 /// The actual HS signing + encoding
 /// Could be in its own file to match RSA/EC but it's 2 lines...
-pub(crate) fn sign_hmac(alg: hmac::Algorithm, key: &[u8], message: &[u8]) -> String {
-    let digest = hmac::sign(&hmac::Key::new(alg, key), message);
+pub(crate) fn sign_hmac<Hmac: KeyInit + Mac>(key: &[u8], message: &[u8]) -> String {
+    let mut mac: Hmac = KeyInit::new_from_slice(key)
+        .expect("HMAC key should be valid");
+    mac.update(message);
+    let result = mac.finalize();
+    let digest = result.into_bytes();
     b64_encode(digest)
 }
 
@@ -24,9 +32,9 @@ pub(crate) fn sign_hmac(alg: hmac::Algorithm, key: &[u8], message: &[u8]) -> Str
 /// If you just want to encode a JWT, use `encode` instead.
 pub fn sign(message: &[u8], key: &EncodingKey, algorithm: Algorithm) -> Result<String> {
     match algorithm {
-        Algorithm::HS256 => Ok(sign_hmac(hmac::HMAC_SHA256, key.inner(), message)),
-        Algorithm::HS384 => Ok(sign_hmac(hmac::HMAC_SHA384, key.inner(), message)),
-        Algorithm::HS512 => Ok(sign_hmac(hmac::HMAC_SHA512, key.inner(), message)),
+        Algorithm::HS256 => Ok(sign_hmac::<HmacSha256>(key.inner(), message)),
+        Algorithm::HS384 => Ok(sign_hmac::<HmacSha384>(key.inner(), message)),
+        Algorithm::HS512 => Ok(sign_hmac::<HmacSha512>(key.inner(), message)),
 
         Algorithm::ES256 | Algorithm::ES384 => {
             ecdsa::sign(ecdsa::alg_to_ec_signing(algorithm), key.inner(), message)
@@ -45,13 +53,13 @@ pub fn sign(message: &[u8], key: &EncodingKey, algorithm: Algorithm) -> Result<S
 
 /// See Ring docs for more details
 fn verify_ring(
-    alg: &'static dyn signature::VerificationAlgorithm,
+    alg: &'static dyn ring::signature::VerificationAlgorithm,
     signature: &str,
     message: &[u8],
     key: &[u8],
 ) -> Result<bool> {
     let signature_bytes = b64_decode(signature)?;
-    let public_key = signature::UnparsedPublicKey::new(alg, key);
+    let public_key = ring::signature::UnparsedPublicKey::new(alg, key);
     let res = public_key.verify(message, &signature_bytes);
 
     Ok(res.is_ok())
@@ -75,7 +83,7 @@ pub fn verify(
         Algorithm::HS256 | Algorithm::HS384 | Algorithm::HS512 => {
             // we just re-sign the message with the key and compare if they are equal
             let signed = sign(message, &EncodingKey::from_secret(key.as_bytes()), algorithm)?;
-            Ok(verify_slices_are_equal(signature.as_ref(), signed.as_ref()).is_ok())
+            Ok(ConstantTimeEq::ct_eq(signature.as_bytes(), signed.as_bytes()).into())
         }
         Algorithm::ES256 | Algorithm::ES384 => verify_ring(
             ecdsa::alg_to_ec_verification(algorithm),
