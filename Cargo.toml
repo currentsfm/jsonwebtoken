@@ -29,15 +29,15 @@ simple_asn1 = { version = "0.6", optional = true }
 
 js-sys = { version = "0.3", optional = true }
 
-rsa = { version = "0.9.8", features = ["sha2"] }
-hmac = "0.12.1"
+rsa = { version = "0.10.0-rc.0", features = ["sha2"] }
+hmac = "0.13.0-rc.0"
 subtle = "2.6.1"
-sha2 = "0.10.9"
-ed25519 = "2.2.3"
-ecdsa = { version = "0.16.9", features = ["verifying", "signing"] }
-rand_core = { version = "0.6", features = ["std"] }
-signature = "2.2"
-pkcs8 = "0.10"
+sha2 = "0.11.0-rc.0"
+ed25519 = "3.0.0-pre.0"
+ecdsa = { version = "0.17.0-rc.2", features = ["verifying", "signing"] }
+rand = { version = "0.9.1" }
+signature = "3.0.0-rc.1"
+pkcs8 = "0.11.0-rc.4"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.1"

@@ -3,7 +3,6 @@ use rsa::signature::{RandomizedSigner, Verifier, SignatureEncoding};
 use rsa::pkcs8::{DecodePrivateKey, DecodePublicKey};
 use rsa::pkcs1::{DecodeRsaPrivateKey, DecodeRsaPublicKey};
 use sha2::{Sha256, Sha384, Sha512};
-use rand_core::OsRng;
 
 use crate::algorithms::Algorithm;
 use crate::errors::{Error, ErrorKind, Result};
@@ -73,30 +72,31 @@ pub(crate) fn sign(
 ) -> Result<String> {
     let private_key = parse_rsa_private_key(key)?;
 
+    let mut rng = rand::rng();
     let signature_bytes = match alg {
         RsaVerificationAlgorithm::Pkcs1v15Sha256 => {
             let signing_key = pkcs1v15::SigningKey::<Sha256>::new(private_key);
-            signing_key.sign_with_rng(&mut OsRng, message).to_bytes().to_vec()
+            signing_key.sign_with_rng(&mut rng, message).to_bytes()
         }
         RsaVerificationAlgorithm::Pkcs1v15Sha384 => {
             let signing_key = pkcs1v15::SigningKey::<Sha384>::new(private_key);
-            signing_key.sign_with_rng(&mut OsRng, message).to_bytes().to_vec()
+            signing_key.sign_with_rng(&mut rng, message).to_bytes()
         }
         RsaVerificationAlgorithm::Pkcs1v15Sha512 => {
             let signing_key = pkcs1v15::SigningKey::<Sha512>::new(private_key);
-            signing_key.sign_with_rng(&mut OsRng, message).to_bytes().to_vec()
+            signing_key.sign_with_rng(&mut rng, message).to_bytes()
         }
         RsaVerificationAlgorithm::PssSha256 => {
             let signing_key = pss::SigningKey::<Sha256>::new(private_key);
-            signing_key.sign_with_rng(&mut OsRng, message).to_bytes().to_vec()
+            signing_key.sign_with_rng(&mut rng, message).to_bytes()
         }
         RsaVerificationAlgorithm::PssSha384 => {
             let signing_key = pss::SigningKey::<Sha384>::new(private_key);
-            signing_key.sign_with_rng(&mut OsRng, message).to_bytes().to_vec()
+            signing_key.sign_with_rng(&mut rng, message).to_bytes()
         }
         RsaVerificationAlgorithm::PssSha512 => {
             let signing_key = pss::SigningKey::<Sha512>::new(private_key);
-            signing_key.sign_with_rng(&mut OsRng, message).to_bytes().to_vec()
+            signing_key.sign_with_rng(&mut rng, message).to_bytes()
         }
     };
 
@@ -109,42 +109,42 @@ fn verify_rsa(
     signature_bytes: &[u8],
     message: &[u8],
 ) -> Result<()> {
-    let result = match alg {
+    match alg {
         RsaVerificationAlgorithm::Pkcs1v15Sha256 => {
             let verifying_key = pkcs1v15::VerifyingKey::<Sha256>::new(public_key);
             let signature = pkcs1v15::Signature::try_from(signature_bytes)
                 .map_err(|_| ErrorKind::InvalidSignature)?;
-            verifying_key.verify(message, &signature)
+            verifying_key.verify(message, &signature).map_err(|_| ErrorKind::InvalidSignature)?
         }
         RsaVerificationAlgorithm::Pkcs1v15Sha384 => {
             let verifying_key = pkcs1v15::VerifyingKey::<Sha384>::new(public_key);
             let signature = pkcs1v15::Signature::try_from(signature_bytes)
                 .map_err(|_| ErrorKind::InvalidSignature)?;
-            verifying_key.verify(message, &signature)
+            verifying_key.verify(message, &signature).map_err(|_| ErrorKind::InvalidSignature)?
         }
         RsaVerificationAlgorithm::Pkcs1v15Sha512 => {
             let verifying_key = pkcs1v15::VerifyingKey::<Sha512>::new(public_key);
             let signature = pkcs1v15::Signature::try_from(signature_bytes)
                 .map_err(|_| ErrorKind::InvalidSignature)?;
-            verifying_key.verify(message, &signature)
+            verifying_key.verify(message, &signature).map_err(|_| ErrorKind::InvalidSignature)?
         }
         RsaVerificationAlgorithm::PssSha256 => {
             let verifying_key = pss::VerifyingKey::<Sha256>::new(public_key);
             let signature = pss::Signature::try_from(signature_bytes)
                 .map_err(|_| ErrorKind::InvalidSignature)?;
-            verifying_key.verify(message, &signature)
+            verifying_key.verify(message, &signature).map_err(|_| ErrorKind::InvalidSignature)?
         }
         RsaVerificationAlgorithm::PssSha384 => {
             let verifying_key = pss::VerifyingKey::<Sha384>::new(public_key);
             let signature = pss::Signature::try_from(signature_bytes)
                 .map_err(|_| ErrorKind::InvalidSignature)?;
-            verifying_key.verify(message, &signature)
+            verifying_key.verify(message, &signature).map_err(|_| ErrorKind::InvalidSignature)?
         }
         RsaVerificationAlgorithm::PssSha512 => {
             let verifying_key = pss::VerifyingKey::<Sha512>::new(public_key);
             let signature = pss::Signature::try_from(signature_bytes)
                 .map_err(|_| ErrorKind::InvalidSignature)?;
-            verifying_key.verify(message, &signature)
+            verifying_key.verify(message, &signature).map_err(|_| ErrorKind::InvalidSignature)?
         }
     };
 
@@ -176,8 +176,10 @@ pub(crate) fn verify_from_components(
     let signature_bytes = b64_decode(signature)?;
     
     // Create RSA public key from components
-    let n = rsa::BigUint::from_bytes_be(components.0);
-    let e = rsa::BigUint::from_bytes_be(components.1);
+    let n_precision = components.0.len() * 8;
+    let e_precision = components.1.len() * 8;
+    let n = rsa::BoxedUint::from_be_slice(components.0, n_precision as u32).expect("Invalid modulus length");
+    let e = rsa::BoxedUint::from_be_slice(components.1, e_precision as u32).expect("Invalid exponent length");
     
     let public_key = RsaPublicKey::new(n, e)
         .map_err(|e| ErrorKind::InvalidRsaKey(e.to_string()))?;
