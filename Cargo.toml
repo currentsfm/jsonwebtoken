@@ -27,12 +27,8 @@ base64 = "0.22"
 pem = { version = "3", optional = true }
 simple_asn1 = { version = "0.6", optional = true }
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 ring = { version = "0.17.4", features = ["std"] }
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-js-sys = "0.3"
-ring = { version = "0.17.4", features = ["std", "wasm32_unknown_unknown_js"] }
+js-sys = { version = "0.3", optional = true }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.1"
@@ -50,6 +46,7 @@ criterion = { version = "0.4", default-features = false }
 [features]
 default = ["use_pem"]
 use_pem = ["pem", "simple_asn1"]
+wasm_js = ["dep:js-sys", "ring/wasm32_unknown_unknown_js"]
 
 [[bench]]
 name = "jwt"

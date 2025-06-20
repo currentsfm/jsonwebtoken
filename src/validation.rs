@@ -168,7 +168,7 @@ impl Default for Validation {
 }
 
 /// Gets the current timestamp in the format expected by JWTs.
-#[cfg(not(all(target_arch = "wasm32", not(any(target_os = "emscripten", target_os = "wasi")))))]
+#[cfg(not(feature = "wasm_js"))]
 #[must_use]
 pub fn get_current_timestamp() -> u64 {
     let start = std::time::SystemTime::now();
@@ -176,7 +176,7 @@ pub fn get_current_timestamp() -> u64 {
 }
 
 /// Gets the current timestamp in the format expected by JWTs.
-#[cfg(all(target_arch = "wasm32", not(any(target_os = "emscripten", target_os = "wasi"))))]
+#[cfg(feature = "wasm_js")]
 #[must_use]
 pub fn get_current_timestamp() -> u64 {
     js_sys::Date::new_0().get_time() as u64 / 1000
