@@ -29,14 +29,15 @@ simple_asn1 = { version = "0.6", optional = true }
 
 js-sys = { version = "0.3", optional = true }
 
-rsa = "0.9.8"
+rsa = { version = "0.9.8", features = ["sha2"] }
 hmac = "0.12.1"
 subtle = "2.6.1"
 sha2 = "0.10.9"
 ed25519 = "2.2.3"
 ecdsa = { version = "0.16.9", features = ["verifying", "signing"] }
-
-ring = { version = "0.17.14", features = ["std"] }
+rand_core = { version = "0.6", features = ["std"] }
+signature = "2.2"
+pkcs8 = "0.10"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.1"

@@ -51,19 +51,6 @@ pub fn sign(message: &[u8], key: &EncodingKey, algorithm: Algorithm) -> Result<S
     }
 }
 
-/// See Ring docs for more details
-fn verify_ring(
-    alg: &'static dyn ring::signature::VerificationAlgorithm,
-    signature: &str,
-    message: &[u8],
-    key: &[u8],
-) -> Result<bool> {
-    let signature_bytes = b64_decode(signature)?;
-    let public_key = ring::signature::UnparsedPublicKey::new(alg, key);
-    let res = public_key.verify(message, &signature_bytes);
-
-    Ok(res.is_ok())
-}
 
 /// Compares the signature given with a re-computed signature for HMAC or using the public key
 /// for RSA/EC.
@@ -85,18 +72,24 @@ pub fn verify(
             let signed = sign(message, &EncodingKey::from_secret(key.as_bytes()), algorithm)?;
             Ok(ConstantTimeEq::ct_eq(signature.as_bytes(), signed.as_bytes()).into())
         }
-        Algorithm::ES256 | Algorithm::ES384 => verify_ring(
-            ecdsa::alg_to_ec_verification(algorithm),
-            signature,
-            message,
-            key.as_bytes(),
-        ),
-        Algorithm::EdDSA => verify_ring(
-            eddsa::alg_to_ec_verification(algorithm),
-            signature,
-            message,
-            key.as_bytes(),
-        ),
+        Algorithm::ES256 | Algorithm::ES384 => {
+            // TODO: Replace with ecdsa crate implementation
+            ecdsa::verify_ecdsa(
+                ecdsa::alg_to_ec_verification(algorithm),
+                signature,
+                message,
+                key.as_bytes(),
+            )
+        },
+        Algorithm::EdDSA => {
+            // TODO: Replace with ed25519 crate implementation
+            eddsa::verify_eddsa(
+                eddsa::alg_to_ec_verification(algorithm),
+                signature,
+                message,
+                key.as_bytes(),
+            )
+        },
         Algorithm::RS256
         | Algorithm::RS384
         | Algorithm::RS512
@@ -105,7 +98,7 @@ pub fn verify(
         | Algorithm::PS512 => {
             let alg = rsa::alg_to_rsa_parameters(algorithm);
             match &key.kind {
-                DecodingKeyKind::SecretOrDer(bytes) => verify_ring(alg, signature, message, bytes),
+                DecodingKeyKind::SecretOrDer(bytes) => rsa::verify_rsa_from_secret_or_der(alg, signature, message, bytes),
                 DecodingKeyKind::RsaModulusExponent { n, e } => {
                     rsa::verify_from_components(alg, signature, message, (n, e))
                 }
