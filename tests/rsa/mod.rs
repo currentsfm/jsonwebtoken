@@ -1,3 +1,4 @@
+#![cfg(feature = "rsa-pss")]
 use jsonwebtoken::{
     crypto::{sign, verify},
     Algorithm, DecodingKey, EncodingKey,

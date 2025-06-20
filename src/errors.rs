@@ -78,6 +78,11 @@ pub enum ErrorKind {
     Json(Arc<serde_json::Error>),
     /// Some of the text was invalid UTF-8
     Utf8(::std::string::FromUtf8Error),
+
+    /// When an unsupported RSA algorithm is used
+    /// 
+    /// This happens on wasm32 when wasm_js is disabled
+    UnsupportedRsaAlgorithm(String)
 }
 
 impl StdError for Error {
@@ -102,6 +107,7 @@ impl StdError for Error {
             ErrorKind::Base64(err) => Some(err),
             ErrorKind::Json(err) => Some(err.as_ref()),
             ErrorKind::Utf8(err) => Some(err),
+            ErrorKind::UnsupportedRsaAlgorithm(_) => None,
         }
     }
 }
@@ -128,6 +134,7 @@ impl fmt::Display for Error {
             ErrorKind::Json(err) => write!(f, "JSON error: {}", err),
             ErrorKind::Utf8(err) => write!(f, "UTF-8 error: {}", err),
             ErrorKind::Base64(err) => write!(f, "Base64 error: {}", err),
+            ErrorKind::UnsupportedRsaAlgorithm(msg) => write!(f, "Unsupported RSA algorithm: {}", msg),
         }
     }
 }

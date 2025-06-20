@@ -3,7 +3,7 @@ use rsa::signature::{RandomizedSigner, Verifier, SignatureEncoding};
 use rsa::pkcs8::{DecodePrivateKey, DecodePublicKey};
 use rsa::pkcs1::{DecodeRsaPrivateKey, DecodeRsaPublicKey};
 use sha2::{Sha256, Sha384, Sha512};
-
+use signature::Signer;
 use crate::algorithms::Algorithm;
 use crate::errors::{Error, ErrorKind, Result};
 use crate::serialization::{b64_decode, b64_encode};
@@ -71,32 +71,40 @@ pub(crate) fn sign(
     message: &[u8],
 ) -> Result<String> {
     let private_key = parse_rsa_private_key(key)?;
-
-    let mut rng = rand::rng();
+    
     let signature_bytes = match alg {
         RsaVerificationAlgorithm::Pkcs1v15Sha256 => {
             let signing_key = pkcs1v15::SigningKey::<Sha256>::new(private_key);
-            signing_key.sign_with_rng(&mut rng, message).to_bytes()
+            signing_key.sign(message).to_bytes()
         }
         RsaVerificationAlgorithm::Pkcs1v15Sha384 => {
             let signing_key = pkcs1v15::SigningKey::<Sha384>::new(private_key);
-            signing_key.sign_with_rng(&mut rng, message).to_bytes()
+            signing_key.sign(message).to_bytes()
         }
         RsaVerificationAlgorithm::Pkcs1v15Sha512 => {
             let signing_key = pkcs1v15::SigningKey::<Sha512>::new(private_key);
-            signing_key.sign_with_rng(&mut rng, message).to_bytes()
+            signing_key.sign(message).to_bytes()
         }
+        #[cfg(feature = "rsa-pss")]
         RsaVerificationAlgorithm::PssSha256 => {
             let signing_key = pss::SigningKey::<Sha256>::new(private_key);
-            signing_key.sign_with_rng(&mut rng, message).to_bytes()
+            signing_key.sign_with_rng(&mut rand::rng(), message).to_bytes()
         }
+        #[cfg(feature = "rsa-pss")]
         RsaVerificationAlgorithm::PssSha384 => {
             let signing_key = pss::SigningKey::<Sha384>::new(private_key);
-            signing_key.sign_with_rng(&mut rng, message).to_bytes()
+            signing_key.sign_with_rng(&mut rand::rng(), message).to_bytes()
         }
+        #[cfg(feature = "rsa-pss")]
         RsaVerificationAlgorithm::PssSha512 => {
             let signing_key = pss::SigningKey::<Sha512>::new(private_key);
-            signing_key.sign_with_rng(&mut rng, message).to_bytes()
+            signing_key.sign_with_rng(&mut rand::rng(), message).to_bytes()
+        },
+        #[cfg(not(feature = "rsa-pss"))]
+        _ => {
+            return Err(Error::from(ErrorKind::UnsupportedRsaAlgorithm(
+                "PSS signing is not supported in this build".to_string(),
+            )));
         }
     };
 
