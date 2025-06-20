@@ -5,7 +5,7 @@ use crate::algorithms::Algorithm;
 use crate::decoding::{DecodingKey, DecodingKeyKind};
 use crate::encoding::EncodingKey;
 use crate::errors::Result;
-use crate::serialization::{b64_decode, b64_encode};
+use crate::serialization::{b64_encode};
 
 pub(crate) mod ecdsa;
 pub(crate) mod eddsa;
@@ -73,7 +73,6 @@ pub fn verify(
             Ok(ConstantTimeEq::ct_eq(signature.as_bytes(), signed.as_bytes()).into())
         }
         Algorithm::ES256 | Algorithm::ES384 => {
-            // TODO: Replace with ecdsa crate implementation
             ecdsa::verify_ecdsa(
                 ecdsa::alg_to_ec_verification(algorithm),
                 signature,
