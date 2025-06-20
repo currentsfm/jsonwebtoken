@@ -1,7 +1,8 @@
 use jsonwebtoken::{
     decode, encode, get_current_timestamp, Algorithm, DecodingKey, EncodingKey, Validation,
 };
-use ring::signature::{Ed25519KeyPair, KeyPair};
+use ed25519_dalek::SigningKey;
+use ed25519_dalek::pkcs8::{EncodePrivateKey, EncodePublicKey};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -11,11 +12,14 @@ pub struct Claims {
 }
 
 fn main() {
-    let doc = Ed25519KeyPair::generate_pkcs8(&ring::rand::SystemRandom::new()).unwrap();
-    let encoding_key = EncodingKey::from_ed_der(doc.as_ref());
-
-    let pair = Ed25519KeyPair::from_pkcs8(doc.as_ref()).unwrap();
-    let decoding_key = DecodingKey::from_ed_der(pair.public_key().as_ref());
+    let signing_key = SigningKey::from_bytes(&rand::random::<[u8; 32]>());
+    let verifying_key = signing_key.verifying_key();
+    
+    let private_key_der = signing_key.to_pkcs8_der().unwrap();
+    let public_key_der = verifying_key.to_public_key_der().unwrap();
+    
+    let encoding_key = EncodingKey::from_ed_der(private_key_der.as_bytes());
+    let decoding_key = DecodingKey::from_ed_der(public_key_der.as_bytes());
 
     let claims = Claims { sub: "test".to_string(), exp: get_current_timestamp() };
 
@@ -37,11 +41,17 @@ mod tests {
 
     impl Jot {
         fn new() -> Jot {
-            let doc = Ed25519KeyPair::generate_pkcs8(&ring::rand::SystemRandom::new()).unwrap();
-            let encoding_key = EncodingKey::from_ed_der(doc.as_ref());
-
-            let pair = Ed25519KeyPair::from_pkcs8(doc.as_ref()).unwrap();
-            let decoding_key = DecodingKey::from_ed_der(pair.public_key().as_ref());
+            // Generate a new Ed25519 signing key
+            let signing_key = SigningKey::from_bytes(&rand::random::<[u8; 32]>());
+            let verifying_key = signing_key.verifying_key();
+            
+            // Convert to PKCS8 DER format for use with jsonwebtoken
+            let private_key_der = signing_key.to_pkcs8_der().unwrap();
+            let public_key_der = verifying_key.to_public_key_der().unwrap();
+            
+            let encoding_key = EncodingKey::from_ed_der(private_key_der.as_bytes());
+            let decoding_key = DecodingKey::from_ed_der(public_key_der.as_bytes());
+            
             Jot { encoding_key, decoding_key }
         }
     }
